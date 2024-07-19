@@ -2,42 +2,65 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// proquint_test tests the proquint package.
 package proquint
 
 import "testing"
 
-func TestEncode(t *testing.T) {
-	cases := []struct {
-		x uint
-		s string
-	}{
-		{0x7f000001, "lusab-babad"},
-		{0x3f54dcc1, "gutih-tugad"},
-		{0x3f760723, "gutuk-bisog"},
-		{0x8c62c18d, "mudof-sakat"},
+// cases is a list of test cases for encoding and decoding.
+var cases map[string]uint
+
+// init initializes the test cases.
+func init() {
+	cases = map[string]uint{
+		"bahab-baduz": 0x7f000001,
+		"salis-jibuz": 0x3f54dcc1,
+		"fasal-limuz": 0x3f760723,
+		"mulad-kapas": 0x8c62c18d,
 	}
-	for _, c := range cases {
-		s := Encode(uint16(c.x >> 16))
-		if s != c.s[:5] {
-			t.Errorf("Encode(%x) == %q, want %q", c.x>>16, s, c.s[:5])
+}
+
+// TestEncode tests encoding functionality.
+func TestEncode(t *testing.T) {
+	for c, x := range cases {
+		s := Encode(uint16(x))
+		if s != c[:5] {
+			t.Errorf("Encode(%x) == %q, want %q", x, s, c[:5])
 		}
-		s = EncodeUint32(uint32(c.x), "-")
-		if s != c.s {
-			t.Errorf("EncodeUint32(%x) == %q, want %q", c.x, s, c.s)
+		s = EncodeUint32(uint32(x), "-")
+		if s != c {
+			t.Errorf("EncodeUint32(%x) == %q, want %q", x, s, c)
 		}
-		i, err := Decode(c.s[:5])
+		s = EncodeUint64(uint64(x|x<<32), "-")
+		if s != c+"-"+c {
+			t.Errorf("EncodeUint64(%x) == %q, want %q", x|x<<32, s, c+"-"+c)
+		}
+	}
+}
+
+// TestDecode tests decoding functionality.
+func TestDecode(t *testing.T) {
+	for c, x := range cases {
+		i, err := Decode(c[:5])
 		if err != nil {
 			t.Error(err)
 		}
-		if i != uint16(c.x>>16) {
-			t.Errorf("Decode(%q) == %x, want %x", c.s[:5], i, uint16(c.x>>16))
+		if i != uint16(x) {
+			t.Errorf("Decode(%q) == %x, want %x", c[:5], i, uint16(x))
 		}
-		i32, err := DecodeUint32(c.s, "-")
+		i32, err := DecodeUint32(c, "-")
 		if err != nil {
 			t.Error(err)
 		}
-		if i32 != uint32(c.x) {
-			t.Errorf("Decode(%q) == %x, want %x", c.s, i32, uint32(c.x))
+		if i32 != uint32(x) {
+			t.Errorf("DecodeUint32(%q) == %x, want %x", c, i32, uint32(x))
+		}
+		i64, err := DecodeUint64(c+"-"+c, "-")
+		if err != nil {
+			t.Error(err)
+		}
+		if i64 != uint64(x|x<<32) {
+			t.Errorf("DecodeUint64(%q) == %x, want %x", c+"-"+c, i64, uint64(x|x<<32))
 		}
 	}
 }
