@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package proquint converts integers to/from sets of pronounceable five-letter words.
-package proquint
+// Package antiquint converts integers to/from sets of pronounceable five-letter words.
+// This implementation differs from the original proquint package in that it uses a reversed
+// byte order for encoding and decoding. This is to ensure that the output is compatible
+// with existing systems that use proquints encoded using little-endian byte order.
+package antiquint
 
 import (
 	"bytes"
@@ -19,6 +22,7 @@ var (
 
 // Encode returns a five-letter word, representing a uint16.
 func Encode(x uint16) string {
+	x = x%256*256 + x/256
 	c3 := x & 0x0f
 	x >>= 4
 	v2 := x & 0x03
@@ -39,13 +43,13 @@ func Encode(x uint16) string {
 
 // EncodeUint32 returns two five-letter words, representing a uint32.
 func EncodeUint32(x uint32, sep string) string {
-	a, b := uint16(x>>16), uint16(x)
+	a, b := uint16(x), uint16(x>>16)
 	return Encode(a) + sep + Encode(b)
 }
 
 // EncodeUint64 returns four five-letter words, representing a uint64.
 func EncodeUint64(x uint64, sep string) string {
-	a, b, c, d := uint16(x>>48), uint16(x>>32), uint16(x>>16), uint16(x)
+	a, b, c, d := uint16(x), uint16(x>>16), uint16(x>>32), uint16(x>>48)
 	return Encode(a) + sep + Encode(b) + sep + Encode(c) + sep + Encode(d)
 }
 
@@ -67,7 +71,8 @@ func Decode(s string) (uint16, error) {
 		}
 		b[i] = uint16(n)
 	}
-	return (((b[0]<<2|b[1])<<4|b[2])<<2|b[3])<<4 | b[4], nil
+	x := b[0]<<12 + b[1]<<10 + b[2]<<6 + b[3]<<4 + b[4]
+	return x%256*256 + x/256, nil
 }
 
 // Decode parses two five-letter words, returning a uint32.
@@ -97,7 +102,7 @@ func DecodeUint32(s string, sep string) (uint32, error) {
 		}
 		b[i] = uint32(n)
 	}
-	return b[0]<<16 | b[1], nil
+	return b[1]<<16 | b[0], nil
 }
 
 // Decode parses four five-letter words, returning a uint64.
@@ -127,5 +132,5 @@ func DecodeUint64(s string, sep string) (uint64, error) {
 		}
 		b[i] = uint64(n)
 	}
-	return b[0]<<48 | b[1]<<32 | b[2]<<16 | b[3], nil
+	return b[3]<<48 | b[2]<<32 | b[1]<<16 | b[0], nil
 }

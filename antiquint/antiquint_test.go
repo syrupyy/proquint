@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// proquint_test tests the proquint package.
-package proquint
+// antiquint_test tests the antiquint package.
+package antiquint
 
 import "testing"
 
@@ -13,17 +13,17 @@ var cases map[string]uint
 // init initializes the test cases.
 func init() {
 	cases = map[string]uint{
-		"lusab-babad": 0x7f000001,
-		"gutih-tugad": 0x3f54dcc1,
-		"gutuk-bisog": 0x3f760723,
-		"mudof-sakat": 0x8c62c18d,
+		"bahab-baduz": 0x7f000001,
+		"salis-jibuz": 0x3f54dcc1,
+		"fasal-limuz": 0x3f760723,
+		"mulad-kapas": 0x8c62c18d,
 	}
 }
 
 // TestEncode tests encoding functionality.
 func TestEncode(t *testing.T) {
 	for c, x := range cases {
-		s := Encode(uint16(x >> 16))
+		s := Encode(uint16(x))
 		if s != c[:5] {
 			t.Errorf("Encode(%x) == %q, want %q", x, s, c[:5])
 		}
@@ -45,7 +45,7 @@ func TestDecode(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if i != uint16(x>>16) {
+		if i != uint16(x) {
 			t.Errorf("Decode(%q) == %x, want %x", c[:5], i, uint16(x))
 		}
 		i32, err := DecodeUint32(c, "-")
