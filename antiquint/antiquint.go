@@ -41,16 +41,27 @@ func Encode(x uint16) string {
 	return string(b[:])
 }
 
+// EncodeBytes returns any amount of five-letter words, representing a byte array.
+func EncodeBytes(b []byte, sep string) string {
+	if len(b)%2 == 1 {
+		b = append([]byte{0}, b...)
+	}
+	l := len(b) / 2
+	s := make([]string, l)
+	for i := 0; i < len(b); i += 2 {
+		s[l-i/2-1] = Encode(uint16(b[i])<<8 | uint16(b[i+1]))
+	}
+	return strings.Join(s, sep)
+}
+
 // EncodeUint32 returns two five-letter words, representing a uint32.
 func EncodeUint32(x uint32, sep string) string {
-	a, b := uint16(x), uint16(x>>16)
-	return Encode(a) + sep + Encode(b)
+	return EncodeBytes([]byte{byte(x >> 24), byte(x >> 16), byte(x >> 8), byte(x)}, sep)
 }
 
 // EncodeUint64 returns four five-letter words, representing a uint64.
 func EncodeUint64(x uint64, sep string) string {
-	a, b, c, d := uint16(x), uint16(x>>16), uint16(x>>32), uint16(x>>48)
-	return Encode(a) + sep + Encode(b) + sep + Encode(c) + sep + Encode(d)
+	return EncodeBytes([]byte{byte(x >> 56), byte(x >> 48), byte(x >> 40), byte(x >> 32), byte(x >> 24), byte(x >> 16), byte(x >> 8), byte(x)}, sep)
 }
 
 // Decode parses a five-letter word, returning a uint16.
@@ -75,62 +86,47 @@ func Decode(s string) (uint16, error) {
 	return x%256*256 + x/256, nil
 }
 
-// Decode parses two five-letter words, returning a uint32.
-func DecodeUint32(s string, sep string) (uint32, error) {
+// DecodeBytes parses any amount of five-letter words, returning a byte array.
+func DecodeBytes(s string, sep string) ([]byte, error) {
 	var p []string
 	if sep != "" {
 		p = strings.Split(s, sep)
-		if len(p) != 2 {
-			return 0, fmt.Errorf("invalid proquint length: %d", len(s))
-		}
-		for i := 0; i < 2; i++ {
-			if len(p[i]) != 5 {
-				return 0, fmt.Errorf("invalid proquint length at position %d: %d", i, len(p[i]))
-			}
-		}
 	} else {
-		if len(s) != 10 {
-			return 0, fmt.Errorf("invalid proquint length: %d", len(s))
+		if len(s)%5 != 0 {
+			return nil, fmt.Errorf("invalid proquint length: %d", len(s))
 		}
-		p = []string{s[:5], s[5:]}
+		p = make([]string, len(s)/5)
+		for i := 0; i < len(s); i += 5 {
+			p[i/5] = s[i : i+5]
+		}
 	}
-	b := make([]uint32, 2)
-	for i := 0; i < 2; i++ {
+	l := len(p) * 2
+	b := make([]byte, l)
+	for i := 0; i < len(p); i++ {
 		n, err := Decode(p[i])
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
-		b[i] = uint32(n)
+		b[l-i*2-2] = byte(n >> 8)
+		b[l-i*2-1] = byte(n)
 	}
-	return b[1]<<16 | b[0], nil
+	return b, nil
 }
 
-// Decode parses four five-letter words, returning a uint64.
+// DecodeUint32 parses two five-letter words, returning a uint32.
+func DecodeUint32(s string, sep string) (uint32, error) {
+	b, err := DecodeBytes(s, sep)
+	if err != nil {
+		return 0, err
+	}
+	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3]), nil
+}
+
+// DecodeUint64 parses four five-letter words, returning a uint64.
 func DecodeUint64(s string, sep string) (uint64, error) {
-	var p []string
-	if sep != "" {
-		p = strings.Split(s, sep)
-		if len(p) != 4 {
-			return 0, fmt.Errorf("invalid proquint length: %d", len(s))
-		}
-		for i := 0; i < 4; i++ {
-			if len(p[i]) != 5 {
-				return 0, fmt.Errorf("invalid proquint length at position %d: %d", i, len(p[i]))
-			}
-		}
-	} else {
-		if len(s) != 20 {
-			return 0, fmt.Errorf("invalid proquint length: %d", len(s))
-		}
-		p = []string{s[:5], s[5:10], s[10:15], s[15:]}
+	b, err := DecodeBytes(s, sep)
+	if err != nil {
+		return 0, err
 	}
-	b := make([]uint64, 4)
-	for i := 0; i < 4; i++ {
-		n, err := Decode(p[i])
-		if err != nil {
-			return 0, err
-		}
-		b[i] = uint64(n)
-	}
-	return b[3]<<48 | b[2]<<32 | b[1]<<16 | b[0], nil
+	return uint64(b[0])<<56 | uint64(b[1])<<48 | uint64(b[2])<<40 | uint64(b[3])<<32 | uint64(b[4])<<24 | uint64(b[5])<<16 | uint64(b[6])<<8 | uint64(b[7]), nil
 }
